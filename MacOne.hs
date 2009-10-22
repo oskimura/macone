@@ -1,8 +1,19 @@
 module MacOne
-    ( assembler
-    , instructionCycle, doIO, boot, traceCycle
+    ( State
+    , assembler
+    , instructionCycle
+    , doIO
+    , boot
+    , traceCycle
+    , addrBound
+    , wordBound
+    , signBound
+    , addrOsr
+    , addrOut
+    , operBound
     )
-where
+    where
+import Data.List (concat)
 import Debug.Trace
 import MacOneAS ( Word
                 , Addr
@@ -10,6 +21,7 @@ import MacOneAS ( Word
                 , Address(..)
                 , Assembly
                 )
+
 
 wordBound = 2^16
 signBound = 2^15
@@ -106,21 +118,26 @@ abort s = trace s undefined
 
 type Instruction = State -> State
 
+-- load  - assign "ac" value
 loco x s = s{ ac = x }
-lodd x s = s{ ac=mm(s)|!|x }
-lodl x s = s{ ac=mm(s)|!|(sp(s)|+|x) }
+lodd x s = s{ ac = mm(s)|!| x }
+lodl x s = s{ ac = mm(s)|!|(sp(s)|+|x) }
 
+-- store - store memory
 stod x s = s{ mm=(x|:=|ac(s))$mm(s) }
 stol x s = s{ mm=(sp(s)|+|x|:=|ac(s))$mm(s) }
 
-addd x s = s{ ac=ac(s)|+|(mm(s)|!|x) }
-addl x s = s{ ac=ac(s)|+|(mm(s)|!|(sp(s)|+|x)) }
+-- add 
+addd x s = s{ ac =ac(s)|+|(mm(s)|!|x) }
+addl x s = s{ ac =ac(s)|+|(mm(s)|!|(sp(s)|+|x)) }
 
-subd x s = s{ ac=ac(s)|-|(mm(s)|!|x) }
-subl x s = s{ ac=ac(s)|-|(mm(s)|!|(sp(s)|+|x)) }
+-- sub
+subd x s = s{ ac =ac(s)|-|(mm(s)|!|x) }
+subl x s = s{ ac =ac(s)|-|(mm(s)|!|(sp(s)|+|x)) }
 
+-- jump
 jump :: Addr -> Instruction
-jump x s = s{pc=x}
+jump x s = s{ pc=x }
 jpos x s = if not . neg . ac$s then s{ pc=x } else s
 jzer x s = if ac(s)==0         then s{ pc=x } else s
 jneg x s = if neg $ ac(s)      then s{ pc=x } else s
@@ -134,6 +151,7 @@ call x s = s{ pc=x
 retn s = s{ sp=sp(s)|+|1
           , pc=mm(s)|!|sp(s)
           }
+-- push
 push s = s{ sp=sp'
           , mm=(sp'|:=|ac(s))$mm(s)
           }
@@ -144,15 +162,18 @@ pshi s = s{ sp=sp'
           }
     where
       sp' = sp(s) |-| 1
-pop s = s{ sp=sp(s)
-         , ac=mm(s)|!|sp(s)
+-- pop
+pop s = s{ sp=sp(s)|+|1
+         , ac = mm(s)|!|sp(s)
          }
 popi s = s{ sp=sp(s)|+|1
           , mm=ac(s)|:=|(mm(s)|!|sp(s))$mm(s)
           }
+-- swap  - swaping ac to sp
 swap s = s{ ac=sp(s)
           , sp=ac(s)
           }
+
 insp y s = s{ sp=sp(s)|+|y }
 desp y s = s{ sp=sp(s)|-|y }
 
@@ -160,7 +181,7 @@ desp y s = s{ sp=sp(s)|-|y }
 --
 decode :: Word -> (Bool,Instruction)
 decode word
- = case (word`quot`2^12) of               -- ワードはビット列に等しい
+ = case mytrace (word`quot`2^12) of  -- ワードはビット列に等しい
     0  -> t (lodd x)                 -- 0000  XXXX  XXXX   XXXX   = 0x0XXX
     1  -> t (stod x)                 -- 0001  XXXX  XXXX   XXXX   = 0x1XXX
     2  -> t (addd x)                 -- 0010  XXXX  XXXX   XXXX   = 0x2XXX
@@ -195,7 +216,7 @@ decode word
 
 doIO :: State -> ([Int],State)
 doIO s
-     | osr(mm(s)) == busy = ([out(mm(s))]
+     | osr(mm(s)) == busy = ( [out(mm(s))]
                             , s{mm =mm'{osr=free}}
                             )
      | otherwise          = ([],s)
@@ -244,18 +265,18 @@ assemble n (statement:rest) trans = (word:words,labs)
     where
       (words,labs) = assemble (n+1) rest trans
       word = case trace (show statement) statement of
-               Lodd a -> c1 0  (trans a)
-               Stod a -> c1 1  (trans a)
-               Addd a -> c1 2  (trans a)
-               Subd a -> c1 3  (trans a)
-               Jpos a -> c1 4  (trans a)
-               Jzer a -> c1 5  (trans a)
-               Jump a -> c1 6  (trans a)
-               Loco c -> c1 7  (index c 12)
-               Lodl n -> c1 8  (index n 12)
-               Stol n -> c1 9  (index n 12)
-               Addl n -> c1 10 (index n 12)
-               Subl n -> c1 11 (index n 12)
+               Lodd a -> c1 0   (trans a)
+               Stod a -> c1 1   (trans a)
+               Addd a -> c1 2   (trans a)
+               Subd a -> c1 3   (trans a)
+               Jpos a -> c1 4   (trans a)
+               Jzer a -> c1 5   (trans a)
+               Jump a -> c1 6   (trans a)
+               Loco c -> c1 7   (index c 12)
+               Lodl n -> c1 8   (index n 12)
+               Stol n -> c1 9   (index n 12)
+               Addl n -> c1 10  (index n 12)
+               Subl n -> c1 11  (index n 12)
                Jneg a -> c1 12  (trans a)
                Jnze a -> c1 13  (trans a)
                Call a -> c1 14  (trans a)
@@ -324,22 +345,20 @@ fib_program n
       ,      Const 2            -- 18:定数2
    ]
 
+
+--traceCycle :: State -> [(String, String, String, String)]
 traceCycle s
     | is_instr  = (mytrace trace_cont): traceCycle stat'
     | otherwise = []
     where
       (is_instr,instr) = decode (mm(s)|!|pc(s))
       (output,stat')   = doIO (instr s{pc=pc(s)|+|1})
-      trace_cont       = ("pc = "     ++ (show $ pc(s))
+      trace_cont       = ( "pc = "    ++ (show $ pc(s))
                          , "ac = "    ++ (show $ ac(s))
                          , "sp = "    ++ (show $ sp(s))
                          , "stack = " ++ (show $ [mm(s)|!|w | w<-[sp(s) .. initSp-1]])
+                         , "output =" ++ (show output)
                          )
 
-
-
-
 mytrace x = trace (show x) x
-main :: IO ()
-main = print $ traceCycle (boot (assembler (fib_program 10)))
-
+-- traceCycle (boot (assembler (fib_program 10)))
