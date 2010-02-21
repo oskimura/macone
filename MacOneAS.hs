@@ -7,8 +7,9 @@ module MacOneAS
 
     )
     where
+import Data.Word
 
-type Word = Int
+--type Word = Int
 type Addr = Word
 
 

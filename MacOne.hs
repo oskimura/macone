@@ -14,6 +14,7 @@ module MacOne
     )
     where
 import Data.List (concat)
+-- import Data.Word
 import Debug.Trace
 import MacOneAS ( Word
                 , Addr
@@ -71,9 +72,10 @@ neg w = w >= signBound
 
 
 format :: Word -> Int
+--format :: Word -> Word
 format n
-    | n > signBound = n - wordBound
-    | otherwise     = n
+    | n > signBound = fromIntegral(n - wordBound)
+    | otherwise     = fromIntegral(n)
 
 
 store :: [Word] -> Memory
@@ -88,14 +90,14 @@ store init =
 (|!|) mm a
       | a == addrOsr = osr(mm)
       | a == addrOut = out(mm)
-      | otherwise    = mem(mm) !! (a `mod` addrBound)
+      | otherwise    = mem(mm) !! (fromIntegral(a) `mod` addrBound)
 --(|!|) mm a = mm !! (a `mod` addrBound)
 
 (|:=|) :: Addr -> Word -> (Memory -> Memory)
 (|:=|) a w
        | a == addrOut = \ m -> m{ out=w, osr=busy }
        | otherwise    = \ m ->
-                        let mem' = update (a `mod` addrBound) w $ mem(m)
+                        let mem' = update (fromIntegral(a) `mod` addrBound) w $ mem(m)
                         in m{ mem = mem'}
 
 
@@ -216,7 +218,7 @@ decode word
 
 doIO :: State -> ([Int],State)
 doIO s
-     | osr(mm(s)) == busy = ( [out(mm(s))]
+     | osr(mm(s)) == busy = ( [fromIntegral(out(mm(s)))]
                             , s{mm =mm'{osr=free}}
                             )
      | otherwise          = ([],s)
@@ -280,7 +282,7 @@ assemble n (statement:rest) trans = (word:words,labs)
                Jneg a -> c1 12  (trans a)
                Jnze a -> c1 13  (trans a)
                Call a -> c1 14  (trans a)
-               Pshi   -> c2 0   0
+               Pshi   -> c2 0   0 
                Popi   -> c2 2   0
                Push   -> c2 4   0
                Pop    -> c2 6   0
@@ -290,25 +292,25 @@ assemble n (statement:rest) trans = (word:words,labs)
                Desp i -> c2 14  (index i 8)
                Stop   -> c2 0   1           -- ある無効なオペコード
                Const n
-                   | 0<=n&&n<wordBound -> n
-                   | -2^15<n&&n<0 -> n+wordBound
+                   | 0<= fromIntegral n && fromIntegral n <wordBound -> fromIntegral n
+                   | -2^15< fromIntegral n && fromIntegral n <0 -> fromIntegral (fromIntegral (n) + wordBound)
                    | otherwise    -> abort ("Bad Const "++ show n)
 
       c1 opcode x = opcode * 2^12 + x
       c2 opcode y = 15*2^12 + opcode*2^8 + y
-      index :: Int -> Int -> Int
+      index :: Int -> Int -> Word
       index n p
-            | 0<=n && n<2^p = n
+            | 0<=n && n<2^p = fromIntegral n
             | otherwise     = 0
 
 isAddr n = (0<=n && n<addrBound)
 
 translate :: (String->Addr) -> Address -> Addr
 translate addrs (C n)
-    | isAddr n  = n
+    | isAddr (fromIntegral n)  = n
     | otherwise = abort ("Constant" ++ show n ++ "no an address.")
 translate addrs (L s)
-    | isAddr n  = n
+    | isAddr (fromIntegral n)  = n
     | otherwise = abort ("Label " ++ s ++ " out of range.")
     where
       n = trace (show . addrs$s) addrs$s

@@ -1,6 +1,7 @@
 module Parser
     ( assembler'
     , parse
+    , parse'
     )
     where
 import Text.ParserCombinators.Parsec
@@ -20,15 +21,25 @@ listToDigit xs = sum $ zipWith (*) (reverse xs) (iterate (*10) 1)
 
 
 -- auxi func
-operandHelper :: (Int -> AStatement) -> String   -> (Parser AStatement)
+operandHelper :: (Address -> AStatement) -> String   -> (Parser AStatement)
 operandHelper constr op_code  =
-    do { string op_code ; spaces ; num <- many digit
-       ; let num' = listToDigit . map digitToInt $ num
-         in return $ constr $ num'
+    do { string op_code ; spaces 
+       
+       ; addr <-  (try (do 
+                        { num <- many1 digit
+                        ; return $ C . fromIntegral . listToDigit . map digitToInt $ num
+                        }) 
+                  <|> 
+                  do {label1 <- letter 
+                     ;label2 <- many1 alphaNum
+                     ; return $ L (label1 : label2)
+                     }                
+                 )
+       ; return $ constr $ addr
        }
 
 addrHelper :: (Address -> AStatement) -> String   -> (Parser AStatement)
-addrHelper constr = operandHelper (constr .  C)
+addrHelper constr = operandHelper constr 
 
 lodd :: Parser AStatement
 lodd = addrHelper Lodd "lodd"
@@ -44,7 +55,11 @@ jnze = addrHelper Jnze "jnze"
 
 
 varHelper :: (Int -> AStatement) -> String   -> (Parser AStatement)
-varHelper constr = operandHelper constr
+varHelper constr = operandHelper constr'
+    where
+      constr' :: Address -> AStatement
+      constr' (C addr) = constr  $ (fromIntegral addr)
+
 -- addrHelper constr = operandHelper (constr .  C)
 
 loco :: Parser AStatement
@@ -85,9 +100,9 @@ label' =
 
 assembler' :: Parser [AStatement]
 assembler' =
-    do { skipMany (char '\n')
-       ; stmts <- sepEndBy1 assemble' (many1 (char  '\n'))
-       ; skipMany (char '\n')
+    do { spaces
+       ; stmts <- sepEndBy1 assemble' spaces
+       ; spaces
        ; return stmts
        }
     where
@@ -102,21 +117,14 @@ assembler' =
                   , const', stop
                   , label'
                     ]
-          where op = (\ x y -> try x <|> y)
+          where op = (\ x y -> try  (do {spaces;v <- x; spaces ; return v}) <|> y)
+
 
 parse' parser s = result
     where
-      Right result = parse parser "" s
-
+     Right result = parse parser "" s
+--      case parse parser "" s of
+--        Left err -> err
+--        Right result = result
 
 -- assemble example
-main :: IO ()
-main =
-    do{ args  <- getArgs
-      ; print (args!!0)
-      ; file_handle <- openFile (args!!0) ReadMode
-      ; text <- hGetContents file_handle
-      ; print text
-      ; mapM_ print $ parse' assembler' text
-      ; hClose file_handle
-      }
