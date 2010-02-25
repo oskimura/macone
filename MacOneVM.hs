@@ -6,6 +6,7 @@ import Data.Bits
 import Data.Word
 
 main :: IO ()
+
 main = 
     do { args <- getArgs
        ; let file = args!! 0 

@@ -1,0 +1,11 @@
+Name:		macone
+Version: 	0.0
+Description: 	
+License: 	MIT
+License-file: 	
+Author: 	oskimura
+Maintainer: 	oskimura@gmail.com
+Build-Depends:	base, parsec
+Executable: 	macone
+Main-is: 	asm.hs
+ghc-options:	-O
