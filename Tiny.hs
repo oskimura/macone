@@ -31,6 +31,7 @@ data TStatement = Declare Variable Expression
                 | Assign  Variable Expression
                 | If    Expression [TStatement] [TStatement]
                 | While Expression [TStatement]
+                | Call Expression [TStatement]
                 | Print Expression
                   deriving Show
 
@@ -80,7 +81,6 @@ operators =
 --    , [ op ":=" AssocRight Assign]
     ]
     where
-
       op name assoc con = Infix (do{ reservedOp name
                                ; return (\ e1 e2 -> con e1 e2)
                                }
@@ -164,33 +164,16 @@ simpleExpr =
     }
 addExpr :: Parser Expression
 addExpr = infixExpr
-    -- do { e1 <- expr
-    --    ; symbol "+"
-    --    ; e2 <- expr
-    --    ; return $ Add e1 e2
-    -- }
 
 subExpr :: Parser Expression
 subExpr = infixExpr
-    -- do { e1 <- expr
-    --    ; symbol "-"
-    --    ; e2 <- expr
-    --    ; return $ Sub e1 e2
-    --    }
+
 eqExpr :: Parser Expression
 eqExpr = infixExpr
-    -- do { e1 <- expr
-    --    ; symbol "="
-    --    ; e2 <- expr
-    --    ; return $ Eq e1 e2
-    -- }
+
 lessExpr :: Parser Expression
 lessExpr = infixExpr
-    -- do { e1 <- expr
-    --    ; symbol "<"
-    --    ; e2 <- expr
-    --    ; return $ Less e1 e2
-    -- }
+
 varExpr :: Parser Expression
 varExpr =
     do { v <- variable

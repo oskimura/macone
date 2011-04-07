@@ -8,9 +8,7 @@ import System.IO
 import System.Console.GetOpt
 import Control.Monad (liftM)
 import qualified  Data.ByteString.Lazy as L(writeFile, pack, unpack)
-
 import Data.Word
-
 import Data.Bits
 
 import  MacOneAS
@@ -18,6 +16,7 @@ import  MacOne
 import  Parser
 
 
+-- Option flag function
 data Flag
     = Source String
     | Object String
@@ -48,7 +47,7 @@ data Parameter = Parameter
     { sourceFile :: String
     , objectFile :: String
     } deriving Show 
--- zip
+
 parseOpts :: ([Flag],[String]) -> Parameter
 parseOpts (flags, strings) =
     foldr  parseOpts'  (Parameter{sourceFile = [] , objectFile = []}) 
@@ -60,6 +59,8 @@ parseOpts (flags, strings) =
             (Source _) -> parameter { sourceFile = arg }
             _ -> parameter
 
+
+
 -- parse'' parser s = result
 --     where
 --       result =
@@ -67,9 +68,9 @@ parseOpts (flags, strings) =
 --             Left err -> err
 --             Right result' -> result'
 
+
+-- Bit Parser
 w8_w16 = toEnum . fromEnum :: Word -> Word8
-
-
 word16Toword8 :: [Word] -> [Word8]
 word16Toword8 xs =
     foldr (\ a b -> (f a) ++ b) [] xs
@@ -86,17 +87,18 @@ word16Toword8 xs =
             
 
 
+
 main :: IO ()
 main =
     do{ args  <- getArgs
       ; (flags, strings) <- assemblerOpts args
-      ;  param <- return $ parseOpts (flags,strings)
+      ; param <- return $ parseOpts (flags,strings)
       ; print param 
       ; file_handle <- openFile (sourceFile param) ReadMode
       ; text <- hGetContents file_handle
 --      ; print text
 --      ; mapM_ print $ parse' assembler' tex
---     ; let word  = assembler . parse' assembler' $ text in       
+--      ; let word  = assembler . parse' assembler' $ text in       
 --       mapM_ print (word16Toword8 . assembler . parse' assembler' $ text)
       ; let word  = assembler . parse' assembler' $ text in 
         L.writeFile (objectFile param) . L.pack  . word16Toword8 $ word 

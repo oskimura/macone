@@ -1,5 +1,5 @@
 label start  
-	loco 5
+	loco 20
 	call fib    
 	stod 4094
 	stop

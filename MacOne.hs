@@ -263,6 +263,7 @@ assemble n (Label l:rest) trans =
     (words, \s->if s==l then n else labs$s)
     where
       (words,labs) = assemble n rest trans
+
 assemble n (statement:rest) trans = (word:words,labs)
     where
       (words,labs) = assemble (n+1) rest trans

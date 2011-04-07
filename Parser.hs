@@ -5,6 +5,7 @@ module Parser
     )
     where
 import Text.ParserCombinators.Parsec
+
 import Data.Char (digitToInt)
 import System.Environment (getArgs)
 import System.IO
@@ -40,6 +41,8 @@ operandHelper constr op_code  =
 
 addrHelper :: (Address -> AStatement) -> String   -> (Parser AStatement)
 addrHelper constr = operandHelper constr 
+
+
 
 lodd :: Parser AStatement
 lodd = addrHelper Lodd "lodd"
@@ -128,3 +131,18 @@ parse' parser s = result
 --        Right result = result
 
 -- assemble example
+
+
+tStr = "woofoobarbazgoo" 
+
+foobarbaz :: Parser String
+foobarbaz = do { string "foo"
+               ; string "bar"
+               ; string "baz"
+               ; return "foobaz"
+               }
+mypar = do { foo <- do {foo'<- (try foobarbaz); cs <- many alphaNum ; return (foo'++cs) }
+                  <|> do {c <- alphaNum; cs <- mypar; return (c:cs) }
+         ; return foo
+         }
+
